@@ -1,5 +1,6 @@
 #![recursion_limit = "128"]
 
+extern crate atdf;
 extern crate cast;
 extern crate clap;
 #[macro_use]
@@ -15,6 +16,7 @@ mod generate;
 mod util;
 
 use std::fs::File;
+use std::path::Path;
 use std::{io, process};
 
 use clap::{App, Arg};
@@ -70,13 +72,25 @@ fn run() -> Result<()> {
         .map(|s| Target::parse(s))
         .unwrap_or(Ok(Target::CortexM))?;
 
-    let xml = &mut String::new();
-    File::open(matches.value_of("input").unwrap())
-        .chain_err(|| "couldn't open the SVD file")?
-        .read_to_string(xml)
-        .chain_err(|| "couldn't read the SVD file")?;
+    let path = matches.value_of("input").unwrap();
+    let path = Path::new(path);
+    let mut file = File::open(&path)
+        .chain_err(|| "couldn't open the SVD file")?;
 
-    let device = svd::parse(xml);
+    let device = match path.extension().and_then(|s| s.to_str()) {
+        Some("atdf") => {
+            let xml = atdf::parse(file)
+                .chain_err(|| "couldn't parse the ATDF file")?;
+            atdf::device(xml.devices().first().unwrap().clone(), xml.modules())
+        }
+
+        _ => {
+            let xml = &mut String::new();
+            file.read_to_string(xml)
+                .chain_err(|| "couldn't read the SVD file")?;
+            svd::parse(xml)
+        }
+    };
 
     let mut items = vec![];
     generate::device(&device, &target, &mut items)?;

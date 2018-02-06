@@ -27,6 +27,7 @@ name = "svd2rust"
 path = "src/main.rs"
 
 [dependencies]
+atdf = { git = "https://github.com/ecstatic-morse/atdf" }
 cast = "0.2.2"
 clap = "2.26.0"
 error-chain = "0.11.0"
