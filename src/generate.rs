@@ -759,18 +759,10 @@ pub fn register(
     }
 
     if access == Access::WriteOnly || access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Writes to the register
-            #[inline]
-            pub fn write<F>(&self, f: F)
-            where
-                F: FnOnce(&mut W) -> &mut W
-            {
-                let mut w = W::reset_value();
-                f(&mut w);
-                self.register.set(w.bits);
-            }
-        });
+        let rv = register
+            .reset_value
+            .or(defs.reset_value)
+            .map(|rv| util::hex(rv));
 
         mod_items.push(quote! {
             /// Value to write to the register
@@ -779,19 +771,30 @@ pub fn register(
             }
         });
 
-        let rv = register
-            .reset_value
-            .or(defs.reset_value)
-            .map(|rv| util::hex(rv))
-            .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
+        if let Some(rv) = rv {
+            reg_impl_items.push(quote! {
+                /// Writes to the register
+                #[inline]
+                pub fn write<F>(&self, f: F)
+                where
+                    F: FnOnce(&mut W) -> &mut W
+                {
+                    let mut w = W::reset_value();
+                    f(&mut w);
+                    self.register.set(w.bits);
+                }
+            });
+
+            w_impl_items.push(quote! {
+                /// Reset value of the register
+                #[inline]
+                pub fn reset_value() -> W {
+                    W { bits: #rv }
+                }
+            });
+        }
 
         w_impl_items.push(quote! {
-            /// Reset value of the register
-            #[inline]
-            pub fn reset_value() -> W {
-                W { bits: #rv }
-            }
-
             /// Writes raw bits to the register
             #[inline]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
