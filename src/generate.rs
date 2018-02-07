@@ -792,6 +792,16 @@ pub fn register(
                     W { bits: #rv }
                 }
             });
+
+            if access == Access::ReadWrite {
+                reg_impl_items.push(quote! {
+                    /// Writes the reset value to the register
+                    #[inline]
+                    pub fn reset(&self) {
+                        self.write(|w| w)
+                    }
+                })
+            }
         }
 
         w_impl_items.push(quote! {
@@ -802,16 +812,6 @@ pub fn register(
                 self
             }
         });
-    }
-
-    if access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Writes the reset value to the register
-            #[inline]
-            pub fn reset(&self) {
-                self.write(|w| w)
-            }
-        })
     }
 
     mod_items.push(quote! {
